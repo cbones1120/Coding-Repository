@@ -1,0 +1,304 @@
+{
+  "fixture": {
+    "date": "2026-09-13",
+    "venue": "Sporting Kansas City (home) vs LAFC (away)",
+    "week": 26
+  },
+  "reverse_fixture": {
+    "date": "2026-07-26",
+    "score": "LAFC 4-0 Sporting Kansas City",
+    "week": 18,
+    "scorers": [
+      {
+        "player_name": "Denis Bouanga",
+        "player_match_goals": 2,
+        "player_match_np_xg": 0.46700186,
+        "player_match_xa": 0.33060902
+      },
+      {
+        "player_name": "David Enmanuel Martinez Morales",
+        "player_match_goals": 1,
+        "player_match_np_xg": 0.33060902,
+        "player_match_xa": 0.09131931
+      },
+      {
+        "player_name": "Heung-Min Son",
+        "player_match_goals": 1,
+        "player_match_np_xg": 0.2985763,
+        "player_match_xa": 0.0
+      }
+    ]
+  },
+  "season_comparison": {
+    "lafc": {
+      "team_season_matches": 23.0,
+      "team_season_gd_pg": 0.609,
+      "team_season_xgd_pg": 0.016,
+      "team_season_np_xg_pg": 1.214,
+      "team_season_np_xg_conceded_pg": 1.13,
+      "team_season_possession": 0.472,
+      "team_season_ppda": 15.231,
+      "team_season_directness": 0.867,
+      "team_season_np_shots_pg": 14.435,
+      "team_season_np_shots_conceded_pg": 12.435,
+      "team_season_sp_xg_pg": 0.206,
+      "team_season_sp_xg_conceded_pg": 0.252,
+      "team_season_counter_attacking_shots_pg": 1.522,
+      "team_season_counter_attacking_shots_conceded_pg": 0.652,
+      "team_season_obv_pg": 2.224,
+      "team_season_obv_conceded_pg": 1.578
+    },
+    "skc": {
+      "team_season_matches": 22.0,
+      "team_season_gd_pg": -1.545,
+      "team_season_xgd_pg": -1.173,
+      "team_season_np_xg_pg": 0.962,
+      "team_season_np_xg_conceded_pg": 1.992,
+      "team_season_possession": 0.44,
+      "team_season_ppda": 14.626,
+      "team_season_directness": 0.884,
+      "team_season_np_shots_pg": 9.409,
+      "team_season_np_shots_conceded_pg": 15.591,
+      "team_season_sp_xg_pg": 0.158,
+      "team_season_sp_xg_conceded_pg": 0.414,
+      "team_season_counter_attacking_shots_pg": 0.591,
+      "team_season_counter_attacking_shots_conceded_pg": 1.318,
+      "team_season_obv_pg": 1.597,
+      "team_season_obv_conceded_pg": 2.586
+    },
+    "league_avg": {
+      "team_season_matches": 22.0,
+      "team_season_gd_pg": -0.0,
+      "team_season_xgd_pg": 0.003,
+      "team_season_np_xg_pg": 1.333,
+      "team_season_np_xg_conceded_pg": 1.331,
+      "team_season_possession": 0.5,
+      "team_season_ppda": 13.522,
+      "team_season_directness": 0.885,
+      "team_season_np_shots_pg": 12.875,
+      "team_season_np_shots_conceded_pg": 12.862,
+      "team_season_sp_xg_pg": 0.306,
+      "team_season_sp_xg_conceded_pg": 0.305,
+      "team_season_counter_attacking_shots_pg": 1.026,
+      "team_season_counter_attacking_shots_conceded_pg": 1.028,
+      "team_season_obv_pg": 2.042,
+      "team_season_obv_conceded_pg": 2.043
+    }
+  },
+  "lafc_form": {
+    "last5": {
+      "np_xg": 1.12,
+      "np_xg_against": 1.13,
+      "goals": 0.4
+    },
+    "season": {
+      "np_xg": 1.22,
+      "np_xg_against": 1.14,
+      "goals": 1.43
+    },
+    "by_side": {
+      "goals": {
+        "away": 1.18,
+        "home": 1.67
+      },
+      "np_xg": {
+        "away": 1.04,
+        "home": 1.38
+      },
+      "np_xg_against": {
+        "away": 1.23,
+        "home": 1.06
+      }
+    }
+  },
+  "skc_form": {
+    "by_side": {
+      "goals": {
+        "away": 0.73,
+        "home": 1.09
+      },
+      "np_xg": {
+        "away": 0.67,
+        "home": 1.27
+      },
+      "np_xg_against": {
+        "away": 2.08,
+        "home": 2.02
+      }
+    }
+  },
+  "trend": [
+    {
+      "date_str": "5/18",
+      "np_xg": 2.06223149,
+      "np_xg_against": 0.607285811,
+      "is_skc": false,
+      "opponent": "Nashville SC"
+    },
+    {
+      "date_str": "5/25",
+      "np_xg": 1.523744059,
+      "np_xg_against": 1.202683925,
+      "is_skc": false,
+      "opponent": "Seattle Sounders"
+    },
+    {
+      "date_str": "7/18",
+      "np_xg": 0.925586637,
+      "np_xg_against": 0.750141999,
+      "is_skc": false,
+      "opponent": "LA Galaxy"
+    },
+    {
+      "date_str": "7/23",
+      "np_xg": 0.779058762,
+      "np_xg_against": 2.357574527,
+      "is_skc": false,
+      "opponent": "Real Salt Lake"
+    },
+    {
+      "date_str": "7/26",
+      "np_xg": 1.111118434,
+      "np_xg_against": 0.47396638100000005,
+      "is_skc": true,
+      "opponent": "Sporting Kansas City"
+    },
+    {
+      "date_str": "8/1",
+      "np_xg": 0.27363851499999997,
+      "np_xg_against": 1.997629151,
+      "is_skc": false,
+      "opponent": "Vancouver Whitecaps"
+    },
+    {
+      "date_str": "8/16",
+      "np_xg": 0.883598942,
+      "np_xg_against": 0.476579211,
+      "is_skc": false,
+      "opponent": "San Diego FC"
+    },
+    {
+      "date_str": "8/20",
+      "np_xg": 0.39065410700000003,
+      "np_xg_against": 1.211745945,
+      "is_skc": false,
+      "opponent": "Colorado Rapids"
+    },
+    {
+      "date_str": "8/23",
+      "np_xg": 2.7834101380000003,
+      "np_xg_against": 0.682687694,
+      "is_skc": false,
+      "opponent": "Portland Timbers"
+    },
+    {
+      "date_str": "8/29",
+      "np_xg": 1.2879868220000001,
+      "np_xg_against": 1.274897227,
+      "is_skc": false,
+      "opponent": "DC United"
+    }
+  ],
+  "top_threats": [
+    {
+      "player_name": "Denis Bouanga",
+      "primary_position": "Left Wing",
+      "player_season_minutes": 2011.852,
+      "player_season_np_xg_90": 0.34,
+      "player_season_xa_90": 0.212,
+      "npxgxa90": 0.553,
+      "player_season_obv_90": 0.356
+    },
+    {
+      "player_name": "Heung-Min Son",
+      "primary_position": "Centre Forward",
+      "player_season_minutes": 1817.179,
+      "player_season_np_xg_90": 0.279,
+      "player_season_xa_90": 0.228,
+      "npxgxa90": 0.507,
+      "player_season_obv_90": 0.2
+    },
+    {
+      "player_name": "Jacob Everett Shaffelburg",
+      "primary_position": "Left Wing",
+      "player_season_minutes": 645.115,
+      "player_season_np_xg_90": 0.08,
+      "player_season_xa_90": 0.254,
+      "npxgxa90": 0.334,
+      "player_season_obv_90": 0.239
+    },
+    {
+      "player_name": "David Enmanuel Martinez Morales",
+      "primary_position": "Right Wing",
+      "player_season_minutes": 1041.313,
+      "player_season_np_xg_90": 0.239,
+      "player_season_xa_90": 0.079,
+      "npxgxa90": 0.319,
+      "player_season_obv_90": 0.166
+    },
+    {
+      "player_name": "Nathan Ordaz",
+      "primary_position": "Centre Forward",
+      "player_season_minutes": 561.39,
+      "player_season_np_xg_90": 0.216,
+      "player_season_xa_90": 0.043,
+      "npxgxa90": 0.259,
+      "player_season_obv_90": -0.003
+    },
+    {
+      "player_name": "Timothy Tillman",
+      "primary_position": "Left Centre Midfielder",
+      "player_season_minutes": 1271.29,
+      "player_season_np_xg_90": 0.057,
+      "player_season_xa_90": 0.191,
+      "npxgxa90": 0.248,
+      "player_season_obv_90": 0.237
+    }
+  ],
+  "set_piece_takers": [
+    {
+      "player_name": "Jacob Everett Shaffelburg",
+      "player_season_sp_xa_90": 0.039
+    },
+    {
+      "player_name": "Denis Bouanga",
+      "player_season_sp_xa_90": 0.035
+    },
+    {
+      "player_name": "Heung-Min Son",
+      "player_season_sp_xa_90": 0.032
+    }
+  ],
+  "build_up_engine": [
+    {
+      "player_name": "Marco Antonio Delgado",
+      "primary_position": "Left Defensive Midfielder",
+      "player_season_deep_progressions_90": 9.393,
+      "player_season_op_passes_90": 58.86,
+      "player_season_passing_ratio": 0.888
+    },
+    {
+      "player_name": "Mathieu Choiniere",
+      "primary_position": "Right Defensive Midfielder",
+      "player_season_deep_progressions_90": 7.736,
+      "player_season_op_passes_90": 54.271,
+      "player_season_passing_ratio": 0.903
+    },
+    {
+      "player_name": "Stephen Antunes Eustaquio",
+      "primary_position": "Right Defensive Midfielder",
+      "player_season_deep_progressions_90": 5.831,
+      "player_season_op_passes_90": 67.122,
+      "player_season_passing_ratio": 0.885
+    }
+  ],
+  "goalkeeper": [
+    {
+      "player_name": "Hugo Hadrien Dominique Lloris",
+      "player_season_minutes": 1888.234,
+      "player_season_gsaa_90": 0.21,
+      "player_season_save_ratio": 0.764,
+      "player_season_np_xg_faced_90": 1.002
+    }
+  ]
+}
