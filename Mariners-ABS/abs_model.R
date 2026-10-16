@@ -22,10 +22,16 @@
 # Usage
 #   Rscript abs_model.R                                   # files in the working dir
 #   Rscript abs_model.R path/to/data-train.csv path/to/data-test.csv
+#   Rscript abs_model.R path/to/data-train.csv path/to/data-test.csv --skip-table
+#       (final model only; the default also runs the comparison model for the
+#        results table, which roughly doubles the run time)
+#   In RStudio: source("abs_model.R"); run_all("data-train.csv", "data-test.csv")
 #
 # Inputs : data-train.csv, data-test.csv (as provided)
 # Outputs: data-test-predictions.csv  (test file with the three prediction columns filled)
 #          train-scored.csv           (train + out-of-fold predictions, used for Problem 2)
+#          results-table.csv          (stage-by-stage CV log loss, with and without the
+#                                      count-sequence features)
 # Requires: data.table, lightgbm
 # =============================================================================
 
@@ -38,6 +44,7 @@ TRAIN_PATH        <- "data-train.csv"
 TEST_PATH         <- "data-test.csv"
 OUT_PATH          <- "data-test-predictions.csv"
 SCORED_TRAIN_PATH <- "train-scored.csv"
+RESULTS_PATH      <- "results-table.csv"
 
 SEED       <- 7
 N_FOLDS    <- 5
@@ -139,8 +146,8 @@ BASE_FEATS <- c("is_strike_call", "plate_x", "plate_z", "sz_top", "sz_bot", "x_o
                 "balls", "strikes", "count_code", "ends_pa_k", "ends_pa_bb", "ends_pa",
                 "outs", "inning", "bat_score_diff", "abs_score_diff", "late_close",
                 "pitch_of_pa", "pa_of_game", "same_hand", "batter_left", "chal_is_home",
-                "velocity", "break_x", "break_z", "extension", "release_z",
-                "seq_overturn", "seq_stood", "seq_gap", "seq_db", "seq_ds")
+                "velocity", "break_x", "break_z", "extension", "release_z")
+SEQ_FEATS    <- c("seq_overturn", "seq_stood", "seq_gap", "seq_db", "seq_ds")
 BUDGET_FEATS <- c("exp_fails", "p_has_chal", "exp_chals_used", "innings_left_frac")
 
 
@@ -301,8 +308,18 @@ report <- function(name, y, p) {
 
 
 # --------------------------------------------------------------------- main ----
-main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
+main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH, use_seq = TRUE,
+                 score_test = TRUE) {
+  # use_seq = FALSE drops the count-sequence features (the comparison model for the
+  # results table); score_test = FALSE stops after cross-validation.
+  # Returns the CV log losses for each stage.
   set.seed(SEED)
+  if (use_seq) BASE_FEATS <- c(BASE_FEATS, SEQ_FEATS)
+  if (!use_seq) {   # never overwrite the real predictions
+    OUT_PATH          <- sub("\\.csv$", "-noseq.csv", OUT_PATH)
+    SCORED_TRAIN_PATH <- sub("\\.csv$", "-noseq.csv", SCORED_TRAIN_PATH)
+  }
+  cat(sprintf("\n===== count-sequence features: %s =====\n", if (use_seq) "ON" else "OFF"))
   train <- add_features(load_data(train_path))
   test  <- add_features(load_data(test_path))
   g   <- train$game_id
@@ -372,14 +389,24 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   F_S <- c(BASE_FEATS, SUCC_TEND_FEATS)
   s3 <- cv_fit(as_mat(train, F_S)[ch, ], y_s, folds_ch, SUCC_PARAMS)
   report("P(success | challenge) + tendency", y_s, s3$oof)
-  use_s3 <- log_loss(y_s, s3$oof) < log_loss(y_s, s1$oof)
+  tend_s <- log_loss(y_s, s3$oof)
+  use_s3 <- tend_s < log_loss(y_s, s1$oof)
   if (!use_s3) { F_S <- BASE_FEATS; s3 <- s1 }
   cat(sprintf("  -> success model uses %s features\n", if (use_s3) "tendency" else "base"))
 
   # Source rule check
   src_pred <- ifelse(train$is_strike_call == 1, "hitting_team", "pitching_team")
-  cat(sprintf("\nSource rule accuracy on challenged pitches: %.4f\n",
-              mean(src_pred[ch] == train$challenge_source[ch])))
+  src_acc  <- mean(src_pred[ch] == train$challenge_source[ch])
+  cat(sprintf("\nSource rule accuracy on challenged pitches: %.4f\n", src_acc))
+
+  res <- list(base_c   = log_loss(y_c, rep(mean(y_c), length(y_c))),
+              base_s   = log_loss(y_s, rep(mean(y_s), length(y_s))),
+              stage1_c = log_loss(y_c, c1$oof), stage1_s = log_loss(y_s, s1$oof),
+              oracle_c = log_loss(y_c, oracle$oof),
+              budget_c = log_loss(y_c, c2$oof),
+              tend_c   = log_loss(y_c, c3$oof), tend_s = tend_s,
+              final_s  = log_loss(y_s, s3$oof), use_s3 = use_s3, src_acc = src_acc)
+  if (!score_test) return(invisible(res))
 
   # --- Fit full models and predict test (same staged logic)
   cat("\nFitting full models and scoring test\n")
@@ -421,11 +448,56 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   imp <- lgb.importance(m_c3)
   cat("\nTop features (gain) for P(challenge):\n")
   print(imp[order(-Gain)][1:12, .(Feature, Gain = round(Gain, 3))], row.names = FALSE)
+  invisible(res)
+}
+
+
+# ---------------------------------------------------------- results table ----
+results_table <- function(r0, r1) {
+  # r0 = run without count-sequence features, r1 = final run with them
+  tab <- data.table(
+    Model = c("Base rate (predict the average)",
+              "Pitch and context features",
+              "+ estimated challenge budget",
+              "+ batter/catcher/club tendencies",
+              "+ count-sequence features (final)",
+              "Improvement over base rate (final)"),
+    P_challenge = c(r1$base_c, r0$stage1_c, r0$budget_c, r0$tend_c, r1$tend_c,
+                    1 - r1$tend_c / r1$base_c),
+    P_success_given_challenge = c(r1$base_s, r0$stage1_s, NA, r0$tend_s, r1$final_s,
+                                  1 - r1$final_s / r1$base_s))
+  notes <- c(
+    sprintf("Game-grouped %d-fold CV log loss; the last row is a share of the base-rate loss.", N_FOLDS),
+    "The success model has no budget stage.",
+    if (!r0$use_s3) "Tendencies did not improve the success model, so its next stage drops them.",
+    sprintf("Oracle (true budget, no count-sequence features): P(challenge) %.5f.", r0$oracle_c),
+    sprintf("Challenge source rule accuracy on challenged train pitches: %.4f.", r1$src_acc))
+  list(table = tab, notes = notes)
+}
+
+run_all <- function(train_path = TRAIN_PATH, test_path = TEST_PATH, table = TRUE) {
+  # Comparison run (CV only), then the final run, which writes the predictions
+  r0 <- if (table) main(train_path, test_path, use_seq = FALSE, score_test = FALSE)
+  r1 <- main(train_path, test_path, use_seq = TRUE)
+  if (!table) return(invisible(r1))
+  rt <- results_table(r0, r1)
+  fwrite(rt$table, RESULTS_PATH)
+  cat("\nResults table (written to", RESULTS_PATH, ")\n")
+  fmt <- copy(rt$table)
+  fmt[, (2:3) := lapply(.SD, function(x) ifelse(is.na(x), "-", sprintf("%.5f", x))), .SDcols = 2:3]
+  last <- nrow(fmt)   # improvement row, shown as a percentage
+  fmt[last, (2:3) := .(sprintf("%.1f%%", 100 * rt$table$P_challenge[last]),
+                       sprintf("%.1f%%", 100 * rt$table$P_success_given_challenge[last]))]
+  print(fmt, row.names = FALSE)
+  cat(paste0("  * ", rt$notes, collapse = "\n"), "\n")
+  invisible(rt)
 }
 
 
 # Run only when called as a script (not when source()'d to borrow functions)
 if (sys.nframe() == 0) {
-  args <- commandArgs(trailingOnly = TRUE)
-  do.call(main, as.list(args[seq_len(min(2, length(args)))]))
+  args  <- commandArgs(trailingOnly = TRUE)
+  files <- setdiff(args, "--skip-table")
+  do.call(run_all, c(as.list(files[seq_len(min(2, length(files)))]),
+                     table = !("--skip-table" %in% args)))
 }
