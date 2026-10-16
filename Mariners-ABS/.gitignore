@@ -1,0 +1,4 @@
+# Competition data is not committed
+Mariners-ABS/*.csv
+Mariners-ABS/*.csv.gz
+Mariners-ABS/*.xlsx
