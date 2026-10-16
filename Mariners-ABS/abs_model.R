@@ -5,14 +5,18 @@
 #
 # Pipeline
 #   1. Load + clean (restore 8-digit game_ids, cast types, sort pitches in game order)
-#   2. Pitch-level features: zone geometry, count leverage, game state, pitch traits
+#   2. Pitch-level features: zone geometry, count leverage, game state, pitch traits,
+#      and count-sequence flags. pitch_result is the pre-challenge call, so the count
+#      on the next called pitch of the PA reveals most overturned calls. These flags
+#      use later pitches in the same PA (fine for scoring the file, but they are not
+#      "at the time of the decision" information).
 #   3. Stage 1: LightGBM P(challenge) and P(success|challenge), game-grouped 5-fold CV
 #   4. Challenge budget: teams get 2 challenges and keep them on a success. The test
 #      file has no challenge labels, so we estimate each team's remaining budget from
 #      model predictions (a small DP over 0/1/2 failed challenges). In train we build
 #      the same feature from out-of-fold predictions so train and test match.
 #   5. Stage 2: refit P(challenge) with the budget features.
-#   6. Stage 3: add shrunken batter/catcher/home-club tendencies (OOF by game);
+#   6. Stage 3: add shrunken batter/catcher/home-club/umpire tendencies (OOF by game);
 #      predict test.
 #
 # Usage
@@ -106,6 +110,27 @@ add_features <- function(d) {
   d[, fld_side     := ifelse(is_top_inning == 1, "home", "away")]
   d[, chal_side    := ifelse(is_strike_call == 1, bat_side, fld_side)]
   d[, chal_is_home := as.integer(chal_side == "home")]
+
+  # Count sequence: pitch_result is the call *before* any challenge, so the count on
+  # the next called pitch of the PA shows whether the call was overturned.
+  # (Requires rows sorted by game, PA, pitch - done in load_data.)
+  d[, `:=`(seq_gap = shift(pitch_of_pa, type = "lead") - pitch_of_pa,
+           seq_db  = shift(balls,       type = "lead") - balls,
+           seq_ds  = shift(strikes,     type = "lead") - strikes),
+    by = .(game_id, pa_of_game)]
+  st  <- d$is_strike_call == 1
+  adj <- d$seq_gap %in% 1
+  flip_adj  <- adj & d$seq_db == st & d$seq_ds == !st
+  stood_adj <- adj & d$seq_db == !st & d$seq_ds == st
+  # "Strikeout" or "walk" but the PA kept going
+  pa_cont   <- !is.na(d$seq_gap) & d$ends_pa == 1
+  # With uncalled pitches in between (swings, fouls) the ball count can only rise, so
+  # a called ball with no ball added was flipped; a called strike with none added stood
+  flip_gap  <- d$seq_gap %in% 2:99 & !st & d$seq_db %in% 0
+  stood_gap <- d$seq_gap %in% 2:99 &  st & d$seq_db %in% 0
+  overturn  <- flip_adj | pa_cont | flip_gap
+  d[, seq_overturn := as.integer(overturn)]
+  d[, seq_stood    := as.integer((stood_adj | stood_gap) & !overturn)]
   d[]
 }
 
@@ -114,7 +139,8 @@ BASE_FEATS <- c("is_strike_call", "plate_x", "plate_z", "sz_top", "sz_bot", "x_o
                 "balls", "strikes", "count_code", "ends_pa_k", "ends_pa_bb", "ends_pa",
                 "outs", "inning", "bat_score_diff", "abs_score_diff", "late_close",
                 "pitch_of_pa", "pa_of_game", "same_hand", "batter_left", "chal_is_home",
-                "velocity", "break_x", "break_z", "extension", "release_z")
+                "velocity", "break_x", "break_z", "extension", "release_z",
+                "seq_overturn", "seq_stood", "seq_gap", "seq_db", "seq_ds")
 BUDGET_FEATS <- c("exp_fails", "p_has_chal", "exp_chals_used", "innings_left_frac")
 
 
@@ -221,8 +247,8 @@ add_id_keys <- function(df) {
   invisible(df)
 }
 
-TEND_FEATS      <- c("te_person", "te_venue")
-SUCC_TEND_FEATS <- c("te_person_succ")
+TEND_FEATS      <- c("te_person", "te_venue", "te_ump")
+SUCC_TEND_FEATS <- c("te_person_succ", "te_ump_succ")
 
 
 # ------------------------------------------------------------------- models ----
@@ -285,7 +311,7 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   y_s <- as.integer(train$is_success[ch])
 
   folds    <- group_folds(g)        # folds for all pitches
-  folds_ch <- group_folds(g[ch])    # folds for challenged pitches only
+  folds_ch <- folds[ch]             # same game partition, challenged pitches only
 
   cat(sprintf("train %s pitches / %d games; test %s / %d\n",
               format(nrow(train), big.mark = ","), uniqueN(g),
@@ -330,8 +356,9 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   resid_c <- y_c - c2$oof
   tp <- tendency_encode(train, test, resid_c, c2$oof, "chal_person", folds)
   tv <- tendency_encode(train, test, resid_c, c2$oof, "home_chal_venue", folds)
-  train[, `:=`(te_person = tp$train, te_venue = tv$train)]
-  test[,  `:=`(te_person = tp$test,  te_venue = tv$test)]
+  tu <- tendency_encode(train, test, resid_c, c2$oof, "umpire_id", folds)
+  train[, `:=`(te_person = tp$train, te_venue = tv$train, te_ump = tu$train)]
+  test[,  `:=`(te_person = tp$test,  te_venue = tv$test,  te_ump = tu$test)]
   F_C <- c(BASE_FEATS, BUDGET_FEATS, TEND_FEATS)
   c3 <- cv_fit(as_mat(train, F_C), y_c, folds, CHAL_PARAMS)
   report("P(challenge) final", y_c, c3$oof)
@@ -340,8 +367,9 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   resid_s <- numeric(nrow(train)); exp_s <- numeric(nrow(train))
   resid_s[ch] <- y_s - s1$oof; exp_s[ch] <- s1$oof
   ts <- tendency_encode(train, test, resid_s, exp_s, "chal_person", folds, mask = ch, k = 20)
-  train[, te_person_succ := ts$train]
-  test[,  te_person_succ := ts$test]
+  tus <- tendency_encode(train, test, resid_s, exp_s, "umpire_id", folds, mask = ch, k = 20)
+  train[, `:=`(te_person_succ = ts$train, te_ump_succ = tus$train)]
+  test[,  `:=`(te_person_succ = ts$test,  te_ump_succ = tus$test)]
   F_S <- c(BASE_FEATS, SUCC_TEND_FEATS)
   s3 <- cv_fit(as_mat(train, F_S)[ch, ], y_s, folds_ch, SUCC_PARAMS)
   report("P(success | challenge) + tendency", y_s, s3$oof)
