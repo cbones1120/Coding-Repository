@@ -16,7 +16,7 @@
 #      model predictions (a small DP over 0/1/2 failed challenges). In train we build
 #      the same feature from out-of-fold predictions so train and test match.
 #   5. Stage 2: refit P(challenge) with the budget features.
-#   6. Stage 3: add shrunken batter/catcher/home-club/umpire tendencies (OOF by game);
+#   6. Stage 3: add shrunken batter/catcher/home-club tendencies (OOF by game);
 #      predict test.
 #
 # Usage
@@ -247,8 +247,8 @@ add_id_keys <- function(df) {
   invisible(df)
 }
 
-TEND_FEATS      <- c("te_person", "te_venue", "te_ump")
-SUCC_TEND_FEATS <- c("te_person_succ", "te_ump_succ")
+TEND_FEATS      <- c("te_person", "te_venue")
+SUCC_TEND_FEATS <- c("te_person_succ")
 
 
 # ------------------------------------------------------------------- models ----
@@ -356,9 +356,9 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   resid_c <- y_c - c2$oof
   tp <- tendency_encode(train, test, resid_c, c2$oof, "chal_person", folds)
   tv <- tendency_encode(train, test, resid_c, c2$oof, "home_chal_venue", folds)
-  tu <- tendency_encode(train, test, resid_c, c2$oof, "umpire_id", folds)
-  train[, `:=`(te_person = tp$train, te_venue = tv$train, te_ump = tu$train)]
-  test[,  `:=`(te_person = tp$test,  te_venue = tv$test,  te_ump = tu$test)]
+  # (umpire_id tendencies were tested here and in the success model: no CV gain)
+  train[, `:=`(te_person = tp$train, te_venue = tv$train)]
+  test[,  `:=`(te_person = tp$test,  te_venue = tv$test)]
   F_C <- c(BASE_FEATS, BUDGET_FEATS, TEND_FEATS)
   c3 <- cv_fit(as_mat(train, F_C), y_c, folds, CHAL_PARAMS)
   report("P(challenge) final", y_c, c3$oof)
@@ -367,9 +367,8 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH) {
   resid_s <- numeric(nrow(train)); exp_s <- numeric(nrow(train))
   resid_s[ch] <- y_s - s1$oof; exp_s[ch] <- s1$oof
   ts <- tendency_encode(train, test, resid_s, exp_s, "chal_person", folds, mask = ch, k = 20)
-  tus <- tendency_encode(train, test, resid_s, exp_s, "umpire_id", folds, mask = ch, k = 20)
-  train[, `:=`(te_person_succ = ts$train, te_ump_succ = tus$train)]
-  test[,  `:=`(te_person_succ = ts$test,  te_ump_succ = tus$test)]
+  train[, te_person_succ := ts$train]
+  test[,  te_person_succ := ts$test]
   F_S <- c(BASE_FEATS, SUCC_TEND_FEATS)
   s3 <- cv_fit(as_mat(train, F_S)[ch, ], y_s, folds_ch, SUCC_PARAMS)
   report("P(success | challenge) + tendency", y_s, s3$oof)
