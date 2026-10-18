@@ -64,10 +64,16 @@ read_raw <- function(path) {
   fread(path, colClasses = "character", na.strings = c("", "NA"))
 }
 
+pad_id <- function(x, width = 8) {
+  # game_ids are 8 digits; restore leading zeros a spreadsheet program stripped
+  # (formatC(flag = "0") pads text with spaces, not zeros, so pad by hand)
+  x <- trimws(x)
+  paste0(strrep("0", pmax(width - nchar(x), 0)), x)
+}
+
 load_data <- function(path) {
   df <- read_raw(path)
-  # game_ids are 8 digits; pad in case a spreadsheet program ever stripped the zeros
-  df[, game_id := formatC(game_id, width = 8, flag = "0")]
+  df[, game_id := pad_id(game_id)]
   for (c in INT_COLS)   set(df, j = c, value = as.integer(df[[c]]))
   for (c in FLOAT_COLS) set(df, j = c, value = suppressWarnings(as.numeric(df[[c]])))
   # accept True/False, TRUE/FALSE or 1/0
@@ -428,7 +434,7 @@ main <- function(train_path = TRAIN_PATH, test_path = TEST_PATH, use_seq = TRUE,
   # Clip so a confident miss can't blow up log loss
   eps <- 1e-4
   out <- read_raw(test_path)   # original file, untouched apart from the prediction columns
-  out[, game_id := formatC(game_id, width = 8, flag = "0")]
+  out[, game_id := pad_id(game_id)]
   idx <- match(out$play_id, test$play_id)
   out[, p_challenge := pmin(pmax(pc_test[idx], eps), 1 - eps)]
   out[, challenge_source := ifelse(test$is_strike_call[idx] == 1, "hitting_team", "pitching_team")]
